@@ -20,7 +20,7 @@ class Card:
         self.hidden = hidden
 
     def __repr__(self):
-        return "%s %s Hidden: %s" % (self.suit, self.value, self.hidden)
+        return "Card(Suit: %s, Value: %s, Hidden: %s)" % (self.suit, self.value, self.hidden)
 
 class Deck:
     def __init__(self):
@@ -30,13 +30,18 @@ class Deck:
                 cards.append(Card(suit, value))
         shuffle(cards)
 
-        self.rows = [[] for i in range(7)]
+        self.rows = []
+        for i in range(7):
+            self.rows.append(Stackpile([]))
+
         for i in range(7):
             for j in range(i, 7):
-                self.rows[j].append(cards.pop(0))
+                self.rows[j].cards.append(cards.pop(0))
+
+        #TODO: goalpiles
 
         for i in self.rows:
-            i[-1].hidden = False
+            i.cards[-1].hidden = False
 
         self.deck = cards
         self.showing = []
@@ -54,7 +59,7 @@ class Deck:
             self.showed = []
 
     def cards_in_stack(self, stack):
-        return self.rows[stack]
+        return self.rows[stack].cards
 
 class Cursor:
     def __init__(self, x, y):
@@ -67,6 +72,41 @@ class Selecter:
         self.from_stack = None
         self.cards = 0
         self.selected = False
+
+class Goalpile:
+    def __init__(self, suit):
+        self.cards = []
+        self.suit = suit
+
+    def valid_addition(self, cards): #cards is always a list of cards, even if it is only one
+        if len(card) == 1:
+            if self.cards:
+                return self.suit == cards[0].suit and cards[0].value - self.cards[-1].value == 1
+            else:
+                return self.suit == cards[0].suit and cards[0].value == 1
+        else:
+            return False
+
+    def add(self, card):
+        if self.valid_addition(card):
+            self.cards += card
+
+class Stackpile:
+    def __init__(self, cards):
+        self.cards = cards
+
+    def valid_addition(self, cards):
+        return (not self.cards) or \
+                (not(self.cards[-1].hidden) \
+                and self.cards[-1].suit % 2 != cards[0].suit % 2 \
+                and self.cards[-1].value - cards[0].value == 1)
+
+    def add(self, cards):
+        if self.valid_addition(cards):
+            self.cards += cards
+            return True
+        else:
+            return False
 
 class Solitaire:
     def __init__(self, screen, cards, backside, bottom):
@@ -96,7 +136,7 @@ class Solitaire:
 
         for i, r in enumerate(self.deck.rows):
             y = 0
-            for c in r:
+            for c in r.cards:
                 card = self.backside if c.hidden else self.cards[c.suit][c.value - 1]
                 self.screen.blit(card, ((MARGIN + CARDWIDTH) * i, (2 * MARGIN + CARDHEIGHT) + y))
                 y += OFFSET
@@ -143,9 +183,9 @@ class Solitaire:
     def select(self):
         #TODO: Restrictions and make it work for not only between stacks
         if self.selector.selected:
-            selected_cards = self.deck.rows[self.selector.from_stack][-self.selector.cards:]
-            self.deck.rows[self.cursor.x] = self.deck.rows[self.cursor.x] + selected_cards
-            del self.deck.rows[self.selector.from_stack][-self.selector.cards:]
+            selected_cards = self.deck.rows[self.selector.from_stack].cards[-self.selector.cards:]
+            if (self.deck.rows[self.cursor.x].add(selected_cards)):
+                del self.deck.rows[self.selector.from_stack].cards[-self.selector.cards:]
         else:
             self.selector.from_stack = self.cursor.x
             self.selector.cards = self.cursor.cards
@@ -175,7 +215,7 @@ class Solitaire:
 def init_game():
     cards = [[pygame.image.load(path.join('cards', '{0:02d}'.format(value) + suit + ".gif"))
             for value in range(1, 14)]
-            for suit in ['c', 'd', 'h', 's']]
+            for suit in ['d', 'c', 'h', 's']]
     backside = pygame.image.load(path.join('cards', 'back192.gif'))
     bottom = pygame.image.load(path.join('cards', 'bottom01-n.gif'))
     pygame.init()
