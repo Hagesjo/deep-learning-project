@@ -76,6 +76,10 @@ class Cursor:
         self.y = y
         self.cards = 1
 
+    @property
+    def position(self):
+        return self.x, self.y
+
 class Selecter:
     def __init__(self):
         self.from_stack = None
@@ -139,16 +143,11 @@ class Solitaire:
 
     def draw(self):
         self.screen.blit(self.backside, (0, 0))
-        if self.deck.deck:
-            x = 0
-            for c in self.deck.choosepile.cards:
-                self.screen.blit(self.cards[c.suit][c.value - 1], ((MARGIN + CARDWIDTH) + x, 0))
-                x += OFFSET
-        else:
-            self.screen.blit(self.bottom, (MARGIN + CARDWIDTH, 0))
+        x = 0
+        for c in self.deck.choosepile.cards:
+            self.screen.blit(self.cards[c.suit][c.value - 1], ((MARGIN + CARDWIDTH) + x, 0))
+            x += OFFSET
 
-        for i in range(3, 7):
-            self.screen.blit(self.bottom, ((MARGIN + CARDWIDTH) * i, 0))
 
         for i, r in enumerate(self.deck.bottom_row):
             y = 0
@@ -160,23 +159,24 @@ class Solitaire:
         for i, g in enumerate(self.deck.goals):
             if g.cards:
                 self.screen.blit(self.cards[g.cards[-1].suit][g.cards[-1].value-1], ((MARGIN+CARDWIDTH) * (i + 3), 0))
+            else:
+                self.screen.blit(self.bottom, ((MARGIN + CARDWIDTH) * (i + 3), 0))
 
         self.draw_cursor()
 
     def move_right(self):
-        if self.cursor.x == 0 and self.cursor.y == 0 and not self.deck.choosepile.cards:
-            self.cursor.x = 3
-        elif self.cursor.x == 1 and self.cursor.y == 0:
+        if self.cursor.position == (1, 0) or (self.cursor.position == (0, 0) and not self.deck.choosepile.cards):
             self.cursor.x = 3
         else:
             self.cursor.x = min(self.cursor.x + 1, 6)
-        self.cursor.cards = 1
+            self.cursor.cards = 1
 
     def move_left(self):
-        if self.cursor.x == 3 and self.cursor.y == 0 and not self.deck.choosepile.cards:
-            self.cursor.x = 0
-        elif self.cursor.x == 3 and self.cursor.y == 0:
-            self.cursor.x = 1
+        if self.cursor.position == (3, 0):
+            if self.deck.choosepile.cards:
+                self.cursor.x = 1
+            else:
+                self.cursor.x = 0
         else:
             self.cursor.x = max(self.cursor.x - 1, 0)
             self.cursor.cards = 1
