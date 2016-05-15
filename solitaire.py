@@ -201,7 +201,6 @@ class Solitaire:
             self.cursor.cards = 1
 
     def select(self):
-        #TODO: Restrictions and make it work for not only between stacks
         if self.selector.selected:
             selected_cards = self.selector.from_stack.cards[-self.selector.cards:]
 
@@ -212,16 +211,18 @@ class Solitaire:
                 if self.selector.from_stack.cards:
                     self.selector.from_stack.cards[-1].hidden = False
         else:
-            if self.cursor.x == 0 and self.cursor.y == 0:
-                    self.deck.deal()
-                    return
-            else:
-                self.selector.from_stack = self.deck.rows[self.cursor.y][self.cursor.x]
+            if self.cursor.position == (0, 0):
+                self.deck.deal()
+                return
+            current_stack = self.deck.rows[self.cursor.y][self.cursor.x]
 
+            if not current_stack.cards:
+                return
+
+            self.selector.from_stack = current_stack
             self.selector.cards = self.cursor.cards
 
-        if self.selector.from_stack.cards:
-            self.selector.selected = not self.selector.selected
+        self.selector.selected = not self.selector.selected
 
     def reset(self):
         self.deck = Deck()
