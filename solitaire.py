@@ -30,36 +30,45 @@ class Deck:
                 cards.append(Card(suit, value))
         shuffle(cards)
 
-        self.rows = []
+        self.bottom_row = []
+        self.goals = []
         for i in range(7):
-            self.rows.append(Stackpile([]))
+            self.bottom_row.append(Stackpile([]))
 
         for i in range(7):
             for j in range(i, 7):
-                self.rows[j].cards.append(cards.pop(0))
+                self.bottom_row[j].cards.append(cards.pop(0))
 
-        #TODO: goalpiles
+        for i in range(4):
+            self.goals.append(Goalpile([]))
 
-        for i in self.rows:
+        for i in self.bottom_row:
             i.cards[-1].hidden = False
 
-        self.deck = cards
-        self.showing = []
+        self.deck = Pile(cards)
+        self.choosepile = Pile([])
+
         self.showed = []
 
-    def deal(self):
-        cards = self.deck[:3]
-        del self.deck[:3]
+        self.top_row = [self.deck, self.choosepile, []] + self.goals
 
-        self.showing = cards
-        if cards:
-            self.showed.extend(self.showing)
-        else:
-            self.deck = self.showed
+        self.rows = [self.top_row, self.bottom_row]
+
+    def deal(self):
+        self.showed += self.choosepile.cards
+        if not self.deck.cards:
+            self.deck.cards = self.showed
             self.showed = []
+            self.choosepile.cards = []
+        else:
+            cards = self.deck.cards[:3]
+            del self.deck.cards[:3]
+            for card in cards:
+                card.hidden = False
+            self.choosepile.cards = cards
 
     def cards_in_stack(self, stack):
-        return self.rows[stack].cards
+        return self.bottom_row[stack].cards
 
 class Cursor:
     def __init__(self, x, y):
@@ -73,33 +82,40 @@ class Selecter:
         self.cards = 0
         self.selected = False
 
-class Goalpile:
-    def __init__(self, suit):
-        self.cards = []
-        self.suit = suit
+class Pile:
+    def __init__(self, cards, draw_direction=None):
+        self.cards = cards
+        self.draw_direction = draw_direction
 
+    def add(self, cards):
+        return False
+
+class Goalpile(Pile):
     def valid_addition(self, cards): #cards is always a list of cards, even if it is only one
-        if len(card) == 1:
+        if len(cards) == 1:
             if self.cards:
                 return self.suit == cards[0].suit and cards[0].value - self.cards[-1].value == 1
             else:
-                return self.suit == cards[0].suit and cards[0].value == 1
+                return cards[0].value == 1
         else:
             return False
 
     def add(self, card):
         if self.valid_addition(card):
+            if not self.cards:
+                self.suit = card[0].suit
             self.cards += card
+            return True
+        else:
+            return False
 
-class Stackpile:
-    def __init__(self, cards):
-        self.cards = cards
-
+class Stackpile(Pile):
     def valid_addition(self, cards):
-        return (not self.cards) or \
-                (not(self.cards[-1].hidden) \
-                and self.cards[-1].suit % 2 != cards[0].suit % 2 \
-                and self.cards[-1].value - cards[0].value == 1)
+        return ((not self.cards and cards[0].value == 13) or
+                self.cards and
+                (not(self.cards[-1].hidden) and
+                self.cards[-1].suit % 2 != cards[0].suit % 2 and
+                self.cards[-1].value - cards[0].value == 1))
 
     def add(self, cards):
         if self.valid_addition(cards):
@@ -123,9 +139,9 @@ class Solitaire:
 
     def draw(self):
         self.screen.blit(self.backside, (0, 0))
-        if self.deck.showing:
+        if self.deck.deck:
             x = 0
-            for c in self.deck.showing:
+            for c in self.deck.choosepile.cards:
                 self.screen.blit(self.cards[c.suit][c.value - 1], ((MARGIN + CARDWIDTH) + x, 0))
                 x += OFFSET
         else:
@@ -134,17 +150,21 @@ class Solitaire:
         for i in range(3, 7):
             self.screen.blit(self.bottom, ((MARGIN + CARDWIDTH) * i, 0))
 
-        for i, r in enumerate(self.deck.rows):
+        for i, r in enumerate(self.deck.bottom_row):
             y = 0
             for c in r.cards:
                 card = self.backside if c.hidden else self.cards[c.suit][c.value - 1]
                 self.screen.blit(card, ((MARGIN + CARDWIDTH) * i, (2 * MARGIN + CARDHEIGHT) + y))
                 y += OFFSET
 
+        for i, g in enumerate(self.deck.goals):
+            if g.cards:
+                self.screen.blit(self.cards[g.cards[-1].suit][g.cards[-1].value-1], ((MARGIN+CARDWIDTH) * (i + 3), 0))
+
         self.draw_cursor()
 
     def move_right(self):
-        if self.cursor.x == 0 and self.cursor.y == 0 and not self.deck.showing:
+        if self.cursor.x == 0 and self.cursor.y == 0 and not self.deck.choosepile.cards:
             self.cursor.x = 3
         elif self.cursor.x == 1 and self.cursor.y == 0:
             self.cursor.x = 3
@@ -153,7 +173,7 @@ class Solitaire:
         self.cursor.cards = 1
 
     def move_left(self):
-        if self.cursor.x == 3 and self.cursor.y == 0 and not self.deck.showing:
+        if self.cursor.x == 3 and self.cursor.y == 0 and not self.deck.choosepile.cards:
             self.cursor.x = 0
         elif self.cursor.x == 3 and self.cursor.y == 0:
             self.cursor.x = 1
@@ -173,7 +193,7 @@ class Solitaire:
             not self.cards_in_stack()[-(self.cursor.cards + 1)].hidden):
             self.cursor.cards += 1
         else:
-            if not self.deck.showing and (self.cursor.x == 1 or self.cursor.x == 2):
+            if not self.deck.choosepile.cards and 1 <= self.cursor.x <= 2:
                 self.cursor.x = 0
             elif self.cursor.x == 2: # The gap between the main deck and the four goal piles
                 self.cursor.x = 1
@@ -183,14 +203,25 @@ class Solitaire:
     def select(self):
         #TODO: Restrictions and make it work for not only between stacks
         if self.selector.selected:
-            selected_cards = self.deck.rows[self.selector.from_stack].cards[-self.selector.cards:]
-            if (self.deck.rows[self.cursor.x].add(selected_cards)):
-                del self.deck.rows[self.selector.from_stack].cards[-self.selector.cards:]
+            selected_cards = self.selector.from_stack.cards[-self.selector.cards:]
+
+            to_stack = self.deck.rows[self.cursor.y][self.cursor.x]
+
+            if to_stack.add(selected_cards):
+                del self.selector.from_stack.cards[-self.selector.cards:]
+                if self.selector.from_stack.cards:
+                    self.selector.from_stack.cards[-1].hidden = False
         else:
-            self.selector.from_stack = self.cursor.x
+            if self.cursor.x == 0 and self.cursor.y == 0:
+                    self.deck.deal()
+                    return
+            else:
+                self.selector.from_stack = self.deck.rows[self.cursor.y][self.cursor.x]
+
             self.selector.cards = self.cursor.cards
 
-        self.selector.selected = not self.selector.selected
+        if self.selector.from_stack.cards:
+            self.selector.selected = not self.selector.selected
 
     def reset(self):
         self.deck = Deck()
@@ -202,7 +233,7 @@ class Solitaire:
 
         x = self.cursor.x * (MARGIN + CARDWIDTH)
         if self.cursor.y == 0 and self.cursor.x == 1:
-            x += OFFSET * 2
+            x += max(0, OFFSET * (len(self.deck.rows[self.cursor.y][self.cursor.x].cards) - 1))
 
         pygame.draw.rect(self.screen,
                          CURSOR_SELECTED_COLOR if self.selector.selected else CURSOR_COLOR,
