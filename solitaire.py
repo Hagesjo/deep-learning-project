@@ -88,9 +88,8 @@ class Selecter:
         self.selected = False
 
 class Pile(object):
-    def __init__(self, cards, draw_direction=None):
+    def __init__(self, cards):
         self.cards = cards
-        self.draw_direction = draw_direction
 
     def add(self, cards):
         return False
