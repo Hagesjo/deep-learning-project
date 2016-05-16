@@ -33,14 +33,14 @@ class Deck:
         self.bottom_row = []
         self.goals = []
         for i in range(7):
-            self.bottom_row.append(Stackpile([]))
+            self.bottom_row.append(TableauPile([]))
 
         for i in range(7):
             for j in range(i, 7):
                 self.bottom_row[j].cards.append(cards.pop(0))
 
         for i in range(4):
-            self.goals.append(Goalpile([]))
+            self.goals.append(FoundationPile([]))
 
         for i in self.bottom_row:
             i.cards[-1].hidden = False
@@ -74,7 +74,7 @@ class Cursor:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.cards = 1
+        self.nCards = 1
 
     @property
     def position(self):
@@ -83,7 +83,7 @@ class Cursor:
 class Selecter:
     def __init__(self):
         self.from_stack = None
-        self.cards = 0
+        self.nCards = 0
         self.selected = False
 
 class Pile:
@@ -94,7 +94,7 @@ class Pile:
     def add(self, cards):
         return False
 
-class Goalpile(Pile):
+class FoundationPile(Pile):
     def valid_addition(self, cards): #cards is always a list of cards, even if it is only one
         if len(cards) == 1:
             if self.cards:
@@ -113,7 +113,7 @@ class Goalpile(Pile):
         else:
             return False
 
-class Stackpile(Pile):
+class TableauPile(Pile):
     def valid_addition(self, cards):
         return ((not self.cards and cards[0].value == 13) or
                 self.cards and
@@ -169,7 +169,7 @@ class Solitaire:
             self.cursor.x = 3
         else:
             self.cursor.x = min(self.cursor.x + 1, 6)
-            self.cursor.cards = 1
+            self.cursor.nCards = 1
 
     def move_left(self):
         if self.cursor.position == (3, 0):
@@ -179,35 +179,35 @@ class Solitaire:
                 self.cursor.x = 0
         else:
             self.cursor.x = max(self.cursor.x - 1, 0)
-            self.cursor.cards = 1
+            self.cursor.nCards = 1
 
     def move_down(self):
         if self.cursor.y == 1:
-            self.cursor.cards = max(self.cursor.cards - 1, 1)
+            self.cursor.nCards = max(self.cursor.nCards - 1, 1)
         self.cursor.y = 1
 
     def move_up(self):
         if (not self.selector.selected and
-            self.cursor.cards < len(self.cards_in_stack()) and
+            self.cursor.nCards < len(self.cards_in_stack()) and
             self.cursor.y == 1 and
-            not self.cards_in_stack()[-(self.cursor.cards + 1)].hidden):
-            self.cursor.cards += 1
+            not self.cards_in_stack()[-(self.cursor.nCards + 1)].hidden):
+            self.cursor.nCards += 1
         else:
             if not self.deck.choosepile.cards and 1 <= self.cursor.x <= 2:
                 self.cursor.x = 0
             elif self.cursor.x == 2: # The gap between the main deck and the four goal piles
                 self.cursor.x = 1
             self.cursor.y = 0
-            self.cursor.cards = 1
+            self.cursor.nCards = 1
 
     def select(self):
         if self.selector.selected:
-            selected_cards = self.selector.from_stack.cards[-self.selector.cards:]
+            selected_cards = self.selector.from_stack.cards[-self.selector.nCards:]
 
             to_stack = self.deck.rows[self.cursor.y][self.cursor.x]
 
             if to_stack.add(selected_cards):
-                del self.selector.from_stack.cards[-self.selector.cards:]
+                del self.selector.from_stack.cards[-self.selector.nCards:]
                 if self.selector.from_stack.cards:
                     self.selector.from_stack.cards[-1].hidden = False
         else:
@@ -220,7 +220,7 @@ class Solitaire:
                 return
 
             self.selector.from_stack = current_stack
-            self.selector.cards = self.cursor.cards
+            self.selector.nCards = self.cursor.nCards
 
         self.selector.selected = not self.selector.selected
 
@@ -230,7 +230,7 @@ class Solitaire:
     def draw_cursor(self):
         y = self.cursor.y * (2 * MARGIN + CARDHEIGHT)
         if self.cursor.y == 1:
-            y += OFFSET * max(len(self.cards_in_stack()) - self.cursor.cards, 0)
+            y += OFFSET * max(len(self.cards_in_stack()) - self.cursor.nCards, 0)
 
         x = self.cursor.x * (MARGIN + CARDWIDTH)
         if self.cursor.y == 0 and self.cursor.x == 1:
@@ -241,7 +241,7 @@ class Solitaire:
                          pygame.Rect(x,
                                      y,
                                      CARDWIDTH,
-                                     CARDHEIGHT + OFFSET * (self.cursor.cards - 1)),
+                                     CARDHEIGHT + OFFSET * (self.cursor.nCards - 1)),
                          2)
 
 def init_game():
