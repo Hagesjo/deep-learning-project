@@ -3,6 +3,7 @@ import pygame
 from os import path
 from random import shuffle
 from pygame.locals import *
+from collections import defaultdict
 
 CARDWIDTH = 73
 CARDHEIGHT = 97
@@ -86,7 +87,7 @@ class Selecter:
         self.nCards = 0
         self.selected = False
 
-class Pile:
+class Pile(object):
     def __init__(self, cards, draw_direction=None):
         self.cards = cards
         self.draw_direction = draw_direction
@@ -129,6 +130,15 @@ class TableauPile(Pile):
             return False
 
 class Solitaire:
+    _POINT_DICT = {
+            "PileStackpile" : 5,
+            "PileGoalpile" : 10,
+            "StackpileGoalpile" : 5,
+            "GoalpileStackpile" : -15
+    }
+
+    POINT_MOVES = defaultdict(int, **_POINT_DICT)
+
     def __init__(self, screen, cards, backside, bottom):
         self.screen = screen
         self.cards = cards
@@ -136,6 +146,7 @@ class Solitaire:
         self.bottom = bottom
         self.cursor = Cursor(0, 1)
         self.selector = Selecter()
+        self.points = 0
         self.reset()
 
     def cards_in_stack(self):
@@ -207,9 +218,12 @@ class Solitaire:
             to_stack = self.deck.rows[self.cursor.y][self.cursor.x]
 
             if to_stack.add(selected_cards):
+                point_key = type(self.selector.from_stack).__name__ + type(to_stack).__name__
+                self.points += Solitaire.POINT_MOVES[point_key]
                 del self.selector.from_stack.cards[-self.selector.nCards:]
-                if self.selector.from_stack.cards:
+                if self.selector.from_stack.cards and self.selector.from_stack.cards[-1].hidden:
                     self.selector.from_stack.cards[-1].hidden = False
+                    self.points += 5
         else:
             if self.cursor.position == (0, 0):
                 self.deck.deal()
