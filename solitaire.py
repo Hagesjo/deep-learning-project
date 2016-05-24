@@ -4,6 +4,8 @@ from os import path
 from random import shuffle
 from pygame.locals import *
 from collections import defaultdict
+from bot import Bot
+from time import sleep
 
 CARDWIDTH = 73
 CARDHEIGHT = 97
@@ -115,11 +117,12 @@ class FoundationPile(Pile):
 
 class TableauPile(Pile):
     def valid_addition(self, cards):
-        return ((not self.cards and cards[0].value == 13) or
-                self.cards and
-                (not(self.cards[-1].hidden) and
-                self.cards[-1].suit % 2 != cards[0].suit % 2 and
-                self.cards[-1].value - cards[0].value == 1))
+        if cards:
+            return ((not self.cards and cards[0].value == 13) or
+                    self.cards and
+                    (not(self.cards[-1].hidden) and
+                    self.cards[-1].suit % 2 != cards[0].suit % 2 and
+                    self.cards[-1].value - cards[0].value == 1))
 
     def add(self, cards):
         if self.valid_addition(cards):
@@ -175,21 +178,21 @@ class Solitaire:
         self.draw_cursor()
 
     def move_right(self):
-        if self.cursor.position == (1, 0) or (self.cursor.position == (0, 0) and not self.deck.choosepile.cards):
-            self.cursor.x = 3
-        else:
-            self.cursor.x = min(self.cursor.x + 1, 6)
-            self.cursor.nCards = 1
+        # if self.cursor.position == (1, 0) or (self.cursor.position == (0, 0) and not self.deck.choosepile.cards):
+            # self.cursor.x = 3
+        # else:
+        self.cursor.x = min(self.cursor.x + 1, 6)
+        self.cursor.nCards = 1
 
     def move_left(self):
-        if self.cursor.position == (3, 0):
-            if self.deck.choosepile.cards:
-                self.cursor.x = 1
-            else:
-                self.cursor.x = 0
-        else:
-            self.cursor.x = max(self.cursor.x - 1, 0)
-            self.cursor.nCards = 1
+        # if self.cursor.position == (3, 0):
+            # if self.deck.choosepile.cards:
+                # self.cursor.x = 1
+            # else:
+                # self.cursor.x = 0
+        # else:
+        self.cursor.x = max(self.cursor.x - 1, 0)
+        self.cursor.nCards = 1
 
     def move_down(self):
         if self.cursor.y == 1:
@@ -272,32 +275,49 @@ def init_game():
 
     solitaire = Solitaire(background, cards, backside, bottom)
     solitaire.draw()
+    bot = Bot()
 
     screen.blit(background, (0, 0))
     pygame.display.update()
-
     while 1:
-        event = pygame.event.wait()
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LEFT:
-                solitaire.move_left()
-            elif event.key == pygame.K_RIGHT:
-                solitaire.move_right()
-            elif event.key == pygame.K_UP:
-                solitaire.move_up()
-            elif event.key == pygame.K_DOWN:
-                solitaire.move_down()
-            elif event.key == pygame.K_SPACE:
-                solitaire.select()
-            background.fill((0, 130, 0))
+        # event = pygame.event.wait()
+        # if event.type == pygame.KEYDOWN:
+            # if event.key == pygame.K_LEFT:
+                # solitaire.move_left()
+            # elif event.key == pygame.K_RIGHT:
+                # solitaire.move_right()
+            # elif event.key == pygame.K_UP:
+                # solitaire.move_up()
+            # elif event.key == pygame.K_DOWN:
+                # solitaire.move_down()
+            # elif event.key == pygame.K_SPACE:
+                # solitaire.select()
+        # background.fill((0, 130, 0))
+        # solitaire.draw()
+        # screen.blit(background, (0, 0))
+        # pygame.display.update()
 
+
+        event = pygame.event.get()
+        bot.update_state(solitaire.deck.rows, solitaire.cursor)
+        moves = bot.make_move()
+        for move in moves:
+            background.fill((0, 130, 0))
+            if move == 'r':
+                solitaire.move_right()
+            elif move == 'l':
+                solitaire.move_left()
+            elif move == 'u':
+                solitaire.move_up()
+            elif move == 'd':
+                solitaire.move_down()
+            elif move == 's':
+                solitaire.select()
             solitaire.draw()
 
             screen.blit(background, (0, 0))
             pygame.display.update()
-        elif event.type == pygame.QUIT:
-            pygame.quit()
-            exit()
+            sleep(0.1)
 
 def main():
     init_game()
