@@ -27,7 +27,12 @@ class Bot:
         self.fails += 1
         if self.fails == 20:
             print "can't solve more"
-            sleep(100)
+            if len(sum(map(lambda x: x.cards, self.foundation), [])) == 52:
+                print "WIN"
+                sleep(10)
+                exit()
+            else:
+                exit()
 
         return self.generate_moves(Position(0,0), deal=True)
 
@@ -46,11 +51,13 @@ class Bot:
 
         for i, from_pile in enumerate(self.tableau):
             for j, to_pile in enumerate(self.tableau):
-                if i == j:
+                if i == j or (from_pile.cards and from_pile.cards[0].value == 13):
                     continue
                 else:
                     vis_cards = filter(lambda x: not x.hidden, from_pile.cards)
                     if to_pile.valid_addition(vis_cards):
+                        if self.last_move == (Position(i, 1), Position(j, 1)):
+                            continue
                         return self.generate_moves(
                                 Position(i, 1),
                                 Position(j, 1),
@@ -80,8 +87,6 @@ class Bot:
         goal is the position to the target pile
         height is the height of the "from pile" """
 
-        if self.last_move == (start, goal):
-            return ""
 
         cards_below_start_pile = len(filter(lambda x: not x.hidden, self.tableau[start.x].cards))
         cursor_to_start =   'd' * max(0, start.y - self.cursor.y) +\
