@@ -30,9 +30,7 @@ class Bot:
             if len(sum(map(lambda x: x.cards, self.foundation), [])) == 52:
                 print "WIN"
                 sleep(10)
-                exit()
-            else:
-                exit()
+            exit()
 
         return self.generate_moves(Position(0,0), deal=True)
 
